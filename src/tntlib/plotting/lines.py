@@ -1,0 +1,431 @@
+from collections.abc import Sequence
+
+import matplotlib.pyplot as plt
+
+import numpy as np
+
+def add_vertical_line(ax: plt.Axes,
+                      x: float | Sequence[float],
+                      **kwargs,):
+    """
+    Add dashed vertical line(s) to a Matplotlib Axes.
+
+    If multiple x-coordinates are provided, ``add_vertical_line`` is
+    called separately for each coordinate.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes on which to draw the vertical line(s).
+
+    x : float or sequence of float
+        x-coordinate or sequence of x-coordinates at which to draw
+        the vertical line(s).
+
+    **kwargs
+        Additional keyword arguments passed to ``ax.axvline()``.
+        The default line style is dashed (``linestyle="--"``).
+
+    Returns
+    -------
+    Line2D or list of Line2D
+        The created vertical line, or a list of vertical lines if
+        multiple x-coordinates are provided.
+
+    Raises
+    ------
+    TypeError
+        If ``x`` is not a numerical value or a sequence of numerical
+        values.
+    ValueError
+        If the sequence of x-coordinates is empty or contains
+        non-finite values.
+    """
+
+    # Handle a single x-coordinate.
+    if isinstance(x, (int, float)):
+        if not np.isfinite(x):
+            raise ValueError(
+                "The x-coordinate must be finite."
+            )
+
+        # Use a dashed line by default.
+        kwargs.setdefault("linestyle", "--")
+
+        return ax.axvline(x, **kwargs)
+
+    # Handle multiple x-coordinates.
+    if isinstance(x, Sequence) and not isinstance(x, (str, bytes)):
+        if len(x) == 0:
+            raise ValueError(
+                "The sequence of x-coordinates cannot be empty."
+            )
+
+        return [
+            add_vertical_line(ax, x_i, **kwargs)
+            for x_i in x
+        ]
+
+    raise TypeError(
+        "'x' must be a numerical value or a sequence of numerical values."
+    )
+
+
+def add_horizontal_line(ax: plt.Axes,
+                        y: float | Sequence[float],
+                        **kwargs,):
+    """
+    Add dashed horizontal line(s) to a Matplotlib Axes.
+
+    If multiple y-coordinates are provided, ``add_horizontal_line`` is
+    called separately for each coordinate.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes on which to draw the horizontal line(s).
+
+    y : float or sequence of float
+        y-coordinate or sequence of y-coordinates at which to draw
+        the horizontal line(s).
+
+    **kwargs
+        Additional keyword arguments passed to ``ax.axhline()``.
+        The default line style is dashed (``linestyle="--"``).
+
+    Returns
+    -------
+    Line2D or list of Line2D
+        The created horizontal line, or a list of horizontal lines if
+        multiple y-coordinates are provided.
+
+    Raises
+    ------
+    TypeError
+        If ``y`` is not a numerical value or a sequence of numerical
+        values.
+
+    ValueError
+        If the sequence of y-coordinates is empty or contains
+        non-finite values.
+    """
+
+    # Handle a single y-coordinate.
+    if isinstance(y, (int, float)):
+        if not np.isfinite(y):
+            raise ValueError(
+                "The y-coordinate must be finite."
+            )
+
+        # Use a dashed line by default.
+        kwargs.setdefault("linestyle", "--")
+
+        return ax.axhline(y, **kwargs)
+
+    # Handle multiple y-coordinates.
+    if isinstance(y, Sequence) and not isinstance(y, (str, bytes)):
+        if len(y) == 0:
+            raise ValueError(
+                "The sequence of y-coordinates cannot be empty."
+            )
+
+        return [
+            add_horizontal_line(ax, y_i, **kwargs)
+            for y_i in y
+        ]
+
+    raise TypeError(
+        "'y' must be a numerical value or a sequence of numerical values."
+    )
+
+
+def add_background(ax: plt.Axes,
+                   x=None,
+                   y=None,
+                   mode: str = "in",
+                   color: str = "lightgray",
+                   alpha: float = 1.0,):
+    """
+    Add a colored background region to a Matplotlib Axes.
+
+    The function can shade regions defined by vertical or horizontal
+    coordinates, or regions above/below a curve.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes on which to draw the background.
+
+    x : float or sequence of float, optional
+        x-coordinate(s). A single value can be used with ``mode="left"``
+        or ``mode="right"``. Two values can be used with ``mode="in"``.
+        For a curve, ``x`` must contain the x-coordinates corresponding
+        to the values in ``y``.
+
+    y : float or sequence of float, optional
+        y-coordinate(s). A single value can be used with ``mode="top"``
+        or ``mode="bottom"``. Two values can be used with ``mode="in"``.
+        For a curve, ``y`` must contain the y-coordinates corresponding
+        to the values in ``x``.
+
+    mode : {"left", "right", "top", "bottom", "in"}
+        Defines the region to shade.
+
+        ``"left"``
+            Shade to the left of a single x-coordinate.
+
+        ``"right"``
+            Shade to the right of a single x-coordinate.
+
+        ``"bottom"``
+            Shade below a single y-coordinate or below a curve.
+
+        ``"top"``
+            Shade above a single y-coordinate or above a curve.
+
+        ``"in"``
+            Shade between two x- or y-coordinates.
+
+    color : str, optional
+        Color of the background. Defaults to ``"gray"``.
+
+    alpha : float, optional
+        Transparency of the background. Must be in the range [0, 1].
+        Defaults to 0.15.
+
+    Raises
+    ------
+    ValueError
+        If the combination of ``x``, ``y`` and ``mode`` is invalid.
+
+    TypeError
+        If coordinates are not numerical.
+    """
+
+    # Check that exactly one coordinate type is provided for simple regions.
+    if x is None and y is None:
+        raise ValueError(
+            "Either 'x' or 'y' must be provided."
+        )
+
+    # Validate alpha.
+    if not 0 <= alpha <= 1:
+        raise ValueError(
+            "'alpha' must be in the range [0, 1]."
+        )
+
+    # Validate mode.
+    valid_modes = {"left", "right", "top", "bottom", "in"}
+
+    if mode not in valid_modes:
+        raise ValueError(
+            f"'mode' must be one of {sorted(valid_modes)}."
+        )
+
+    # ------------------------------------------------------------------
+    # Curve case: both x and y are sequences with more than two values.
+    # ------------------------------------------------------------------
+    if x is not None and y is not None:
+
+        if np.isscalar(x) or np.isscalar(y):
+            raise ValueError(
+                "For a curve, both 'x' and 'y' must be sequences."
+            )
+
+        try:
+            x_values = np.asarray(x, dtype=float)
+            y_values = np.asarray(y, dtype=float)
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                "Curve coordinates must be numerical."
+            ) from exc
+
+        if x_values.ndim != 1 or y_values.ndim != 1:
+            raise ValueError(
+                "Curve coordinates must be one-dimensional."
+            )
+
+        if len(x_values) != len(y_values):
+            raise ValueError(
+                "'x' and 'y' must contain the same number of values."
+            )
+
+        if len(x_values) < 3:
+            raise ValueError(
+                "A curve requires at least three coordinate pairs."
+            )
+
+        if not np.all(np.isfinite(x_values)) or not np.all(
+            np.isfinite(y_values)
+        ):
+            raise ValueError(
+                "Curve coordinates must contain only finite values."
+            )
+
+        if mode not in {"top", "bottom"}:
+            raise ValueError(
+                "A curve can only be used with mode='top' or "
+                "mode='bottom'."
+            )
+
+        if mode == "bottom":
+            return ax.fill_between(
+                x_values,
+                y_values,
+                ax.get_ylim()[0],
+                color=color,
+                alpha=alpha,
+            )
+
+        return ax.fill_between(
+            x_values,
+            y_values,
+            ax.get_ylim()[1],
+            color=color,
+            alpha=alpha,
+        )
+
+    # ------------------------------------------------------------------
+    # x-coordinate case.
+    # ------------------------------------------------------------------
+    if x is not None:
+        
+        if np.isscalar(x):
+            x_values = [float(x)]
+        else:
+            try:
+                x_values = [float(value) for value in x]
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    "'x' must be a number or a sequence of numbers."
+                ) from exc
+
+        if len(x_values) == 0:
+            raise ValueError(
+                "'x' cannot be empty."
+            )
+
+        if not all(np.isfinite(value) for value in x_values):
+            raise ValueError(
+                "'x' must contain only finite values."
+            )
+
+        # Single x-coordinate.
+        if len(x_values) == 1:
+
+            if mode == "left":
+                return ax.axvspan(
+                    ax.get_xlim()[0],
+                    x_values[0],
+                    color=color,
+                    alpha=alpha,
+                )
+
+            if mode == "right":
+                return ax.axvspan(
+                    x_values[0],
+                    ax.get_xlim()[1],
+                    color=color,
+                    alpha=alpha,
+                )
+
+            raise ValueError(
+                "A single x-coordinate requires mode='left' or "
+                "mode='right'."
+            )
+
+        # Two x-coordinates.
+        if len(x_values) == 2:
+
+            if mode != "in":
+                raise ValueError(
+                    "Two x-coordinates require mode='in'."
+                )
+
+            xmin, xmax = sorted(x_values)
+
+            return ax.axvspan(
+                xmin,
+                xmax,
+                color=color,
+                alpha=alpha,
+            )
+        
+        # More than two x-coordinates require a corresponding y curve.
+        raise ValueError(
+            "More than two x-coordinates define a curve and therefore "
+            "require the corresponding 'y' coordinates."
+        )
+    
+    
+    # ------------------------------------------------------------------
+    # y-coordinate case.
+    # ------------------------------------------------------------------
+    if y is not None:
+        
+        if np.isscalar(y):
+            y_values = [float(y)]
+        else:
+            try:
+                y_values = [float(value) for value in y]
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    "'y' must be a number or a sequence of numbers."
+                ) from exc
+
+        if len(y_values) == 0:
+            raise ValueError(
+                "'y' cannot be empty."
+            )
+
+        if not all(np.isfinite(value) for value in y_values):
+            raise ValueError(
+                "'y' must contain only finite values."
+            )
+
+        # Single y-coordinate.
+        if len(y_values) == 1:
+
+            if mode == "bottom":
+                return ax.axhspan(
+                    ax.get_ylim()[0],
+                    y_values[0],
+                    color=color,
+                    alpha=alpha,
+                )
+
+            if mode == "top":
+                return ax.axhspan(
+                    y_values[0],
+                    ax.get_ylim()[1],
+                    color=color,
+                    alpha=alpha,
+                )
+
+            raise ValueError(
+                "A single y-coordinate requires mode='top' or "
+                "mode='bottom'."
+            )
+
+        # Two y-coordinates.
+        if len(y_values) == 2:
+
+            if mode != "in":
+                raise ValueError(
+                    "Two y-coordinates require mode='in'."
+                )
+
+            ymin, ymax = sorted(y_values)
+
+            return ax.axhspan(
+                ymin,
+                ymax,
+                color=color,
+                alpha=alpha,
+            )
+
+        # More than two y-coordinates require a corresponding x curve.
+        raise ValueError(
+            "More than two y-coordinates define a curve and therefore "
+            "require the corresponding 'x' coordinates."
+        )

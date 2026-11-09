@@ -1,0 +1,14 @@
+"""
+
+aplib - simple analysis toolkit for TNT
+
+Scientific toolkit for data analysis and plotting.
+
+Developed by Alessandro Petrini 
+
+Provides:
+- plotting module
+- analysis
+"""
+
+__version__ = "0.1.1"
