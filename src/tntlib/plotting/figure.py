@@ -24,7 +24,9 @@ def create_figure(ax_width=9,
                   margin=2,
                   dpi=600,
                   nrows=1,
-                  ncols=1,):
+                  ncols=1,
+                  wspace=0.5,
+                  hspace=0.5,):
     """
     Create a figure with one or multiple fixed-size axes.
 
@@ -67,8 +69,8 @@ def create_figure(ax_width=9,
         )
 
     # Figure dimensions.
-    fig_width = ncols * ax_width + margin
-    fig_height = nrows * ax_height + margin
+    fig_width = ncols * ax_width + (ncols - 1) * wspace + margin
+    fig_height = nrows * ax_height + (nrows - 1) * hspace + margin
 
     fig = plt.figure(
         figsize=(fig_width, fig_height),
@@ -105,14 +107,14 @@ def create_figure(ax_width=9,
     top = 1 - bottom
 
     gs = fig.add_gridspec(
-        nrows=nrows,
-        ncols=ncols,
-        left=left,
-        right=right,
-        bottom=bottom,
-        top=top,
-        wspace=0,
-        hspace=0,
+    nrows=nrows,
+    ncols=ncols,
+    left=left,
+    right=right,
+    bottom=bottom,
+    top=top,
+    wspace=wspace / ax_width,
+    hspace=hspace / ax_height,
     )
 
     # Create axes in row-major order.
