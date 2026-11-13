@@ -18,20 +18,23 @@ from pathlib import Path
 # Standard AP divider region in figure coordinates
 AP_DIVIDER_RECT = (0.15, 0.15, 0.8, 0.8)
 
+
 def create_figure(ax_width=9,
                   ax_height=7,
                   margin=2,
-                  dpi=600,):
+                  dpi=600,
+                  nrows=1,
+                  ncols=1,):
     """
-    Create a figure with a fixed-size axes.
-    
+    Create a figure with one or multiple fixed-size axes.
+
     Parameters
     ----------
     ax_width : float, default=9
-        Width of the axes in inches.
+        Width of each axes in inches.
 
     ax_height : float, default=7
-        Height of the axes in inches.
+        Height of each axes in inches.
 
     margin : float, default=2
         Additional figure size in inches.
@@ -39,33 +42,91 @@ def create_figure(ax_width=9,
     dpi : int, default=600
         Figure resolution.
 
+    nrows : int, default=1
+        Number of rows of axes.
+
+    ncols : int, default=1
+        Number of columns of axes.
+
     Returns
     -------
     fig : matplotlib.figure.Figure
         The created figure.
 
-    ax : matplotlib.axes.Axes
-        The created axes.
+    ax : matplotlib.axes.Axes or list of Axes
+        A single Axes if nrows=ncols=1.
+        Otherwise, a flat list of Axes, ordered row by row.
     """
 
-    fig = plt.figure(figsize=(ax_width + margin, ax_height + margin),
-                     dpi=dpi)
+    # Validate input.
+    if (not isinstance(nrows, int) or isinstance(nrows, bool)
+            or not isinstance(ncols, int) or isinstance(ncols, bool)
+            or nrows < 1 or ncols < 1):
+        raise ValueError(
+            "'nrows' and 'ncols' must be positive integers."
+        )
 
-    h = [Size.Fixed(ax_width)]
-    v = [Size.Fixed(ax_height)]
+    # Figure dimensions.
+    fig_width = ncols * ax_width + margin
+    fig_height = nrows * ax_height + margin
 
-    divider = Divider(fig,
-                      AP_DIVIDER_RECT,
-                      h,
-                      v)
+    fig = plt.figure(
+        figsize=(fig_width, fig_height),
+        dpi=dpi,
+    )
 
-    ax = fig.add_axes(divider.get_position(),
-                      axes_locator=divider.new_locator(nx=0, ny=0))
+    # Single axes: preserve the original implementation.
+    if nrows == 1 and ncols == 1:
 
-    ax.set_autoscale_on(True)
+        h = [Size.Fixed(ax_width)]
+        v = [Size.Fixed(ax_height)]
 
-    return fig, ax
+        divider = Divider(
+            fig,
+            AP_DIVIDER_RECT,
+            h,
+            v,
+        )
 
+        ax = fig.add_axes(
+            divider.get_position(),
+            axes_locator=divider.new_locator(nx=0, ny=0),
+        )
+
+        ax.set_autoscale_on(True)
+
+        return fig, ax
+
+    # Multiple axes.
+    # Margins are distributed equally around the grid.
+    left = margin / (2 * fig_width)
+    right = 1 - left
+    bottom = margin / (2 * fig_height)
+    top = 1 - bottom
+
+    gs = fig.add_gridspec(
+        nrows=nrows,
+        ncols=ncols,
+        left=left,
+        right=right,
+        bottom=bottom,
+        top=top,
+        wspace=0,
+        hspace=0,
+    )
+
+    # Create axes in row-major order.
+    ax_list = []
+
+    for i in range(nrows):
+        for j in range(ncols):
+
+            ax = fig.add_subplot(gs[i, j])
+            ax.set_autoscale_on(True)
+
+            ax_list.append(ax)
+
+    return fig, ax_list
 
 
 def setup_axes(ax,

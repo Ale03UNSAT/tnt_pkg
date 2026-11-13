@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, LogLocator, MultipleLocator, NullLocator, AutoMinorLocator, FixedFormatter, NullFormatter
 from mpl_toolkits.axes_grid1 import Divider, Size
 
+import numpy as np
+
 from pathlib import Path
 
 # Standard AP divider region in figure coordinates
@@ -307,6 +309,7 @@ def make_legend_handles(handles: Sequence[Artist],
     # Pair each artist with its corresponding label.
     return list(zip(handles, labels))
 
+
 def make_legend(ax: Axes,
                 handles: Sequence[Artist] | None = None,
                 labels: Sequence[str] | None = None,
@@ -317,75 +320,68 @@ def make_legend(ax: Axes,
                 frameon: bool = False,
                 x_box=None,
                 y_box=None,
+                nrows: int = 1,
+                ncols: int = 1,
                 **kwargs,):
-    """
-    Create a customized legend for a Matplotlib Axes.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes on which to create the legend.
-
-    handles : sequence of Artist, optional
-        Legend handles for a standard single-section legend.
-
-    labels : sequence of str, optional
-        Labels corresponding to ``handles``.
-
-    title : str, optional
-        Title for a standard single-section legend.
-
-    groups : sequence of tuple, optional
-        Legend sections. Each entry must be a tuple of the form
-        ``(handles, labels, title)``.
-
-    frameon : bool, optional
-        Whether to draw the legend frame. Defaults to False.
-
-    x_box : float, optional
-        Horizontal bounding for the box used to position the legend.
-
-    y_box : float, optional
-        Vertical bounding for the box used to position the legend.
-
-    **kwargs
-        Additional keyword arguments passed to ``ax.legend()`` for a
-        standard legend.
-
-    Returns
-    -------
-    matplotlib.legend.Legend or matplotlib.offsetbox.AnchoredOffsetbox
-        The created legend.
-    """
 
     if groups is not None:
+
         if handles is not None or labels is not None or title is not None:
             raise ValueError(
                 "'groups' cannot be used together with 'handles', "
                 "'labels', or 'title'."
             )
 
-        return _make_grouped_legend(
+        if (not isinstance(nrows, int) or isinstance(nrows, bool)
+                or not isinstance(ncols, int) or isinstance(ncols, bool)
+                or nrows < 1 or ncols < 1):
+            raise ValueError(
+                "'nrows' and 'ncols' must be positive integers."
+            )
+
+        if nrows == 1 and ncols == 1:
+            return _make_grouped_legend(
+                ax,
+                groups,
+                frameon=frameon,
+                x_box=x_box,
+                y_box=y_box,
+                **kwargs,
+            )
+
+        # If only nrows is specified, calculate ncols.
+        if nrows > 1 and ncols == 1:
+            ncols = int(np.ceil(len(groups) / nrows))
+
+        # If only ncols is specified, calculate nrows.
+        elif ncols > 1 and nrows == 1:
+            nrows = int(np.ceil(len(groups) / ncols))
+
+        if nrows * ncols < len(groups):
+            raise ValueError(
+                "'nrows' * 'ncols' must be >= the number of groups."
+            )
+
+        return _make_grid_grouped_legend(
             ax,
             groups,
+            nrows=nrows,
+            ncols=ncols,
             frameon=frameon,
             x_box=x_box,
             y_box=y_box,
             **kwargs,
         )
+
     if x_box is not None and y_box is not None:
-        bbox_to_anchor=(x_box, y_box)
-    elif x_box is not None and y_box is None:
+        bbox_to_anchor = (x_box, y_box)
+    elif x_box is not None or y_box is not None:
         raise ValueError(
-            f"'y_box' must be not None if 'x_box'={x_box}" 
-        )
-    elif x_box is None and y_box is not None:
-        raise ValueError(
-            f"'x_box' must be not None if 'y_box'={y_box}" 
+            "'x_box' and 'y_box' must be specified together."
         )
     else:
-        bbox_to_anchor=None
-    
+        bbox_to_anchor = None
+
     # Create a standard Matplotlib legend.
     leg = ax.legend(
         handles=handles,
@@ -393,6 +389,7 @@ def make_legend(ax: Axes,
         title=title,
         frameon=frameon,
         bbox_to_anchor=bbox_to_anchor,
+        ncols=ncols,
         **kwargs,
     )
 
@@ -405,19 +402,25 @@ def make_legend(ax: Axes,
     return leg
 
 
-def _make_grouped_legend(ax: Axes,
-                         groups,
-                         frameon=False,
-                         x_box=None,
-                         y_box=None,
-                         **kwargs,):
+def _make_grid_grouped_legend(ax: Axes,
+                              groups,
+                              nrows=1,
+                              ncols=1,
+                              frameon=False,
+                              x_box=None,
+                              y_box=None,
+                              **kwargs,):
     """
-    Create a legend containing multiple titled sections.
+    Create a grouped legend arranged in a grid.
+
+    Groups are arranged row-wise, from left to right
+    and then top to bottom.
     """
 
-    rows = []
+    sections = []
 
     for handles, labels, title in groups:
+
         section = []
 
         # Add the section title.
@@ -439,11 +442,11 @@ def _make_grouped_legend(ax: Axes,
             ncols=1,
             **{k: v for k, v in kwargs.items() if k != "ncols"},
         )
-        
+
         # Extract the legend's internal box.
         section.append(leg._legend_box)
 
-        rows.append(
+        sections.append(
             VPacker(
                 children=section,
                 align="left",
@@ -451,25 +454,40 @@ def _make_grouped_legend(ax: Axes,
             )
         )
 
-    # Arrange the sections horizontally.
-    box = HPacker(
+    # Arrange groups into rows.
+    rows = []
+
+    for row in range(nrows):
+
+        row_sections = sections[
+            row * ncols : (row + 1) * ncols
+        ]
+
+        if row_sections:
+            rows.append(
+                HPacker(
+                    children=row_sections,
+                    align="top",
+                    sep=16,
+                )
+            )
+
+    # Arrange rows vertically.
+    box = VPacker(
         children=rows,
-        align="top",
-        sep=16,
+        align="left",
+        sep=12,
     )
 
-    if x_box is	not None and y_box is not None:
-        bbox_to_anchor=(x_box, y_box)
-    elif x_box is not None and y_box is None:
+    # Determine legend position.
+    if x_box is not None and y_box is not None:
+        bbox_to_anchor = (x_box, y_box)
+    elif x_box is not None or y_box is not None:
         raise ValueError(
-            f"'y_box' must be not None if 'x_box'={x_box}"
-        )
-    elif x_box is None and y_box is not None:
-        raise ValueError(
-            f"'x_box' must be not None if 'y_box'={y_box}"
+            "'x_box' and 'y_box' must be specified together."
         )
     else:
-        bbox_to_anchor=None
+        bbox_to_anchor = None
 
     # Anchor the complete grouped legend to the Axes.
     anchored = AnchoredOffsetbox(
@@ -484,6 +502,7 @@ def _make_grouped_legend(ax: Axes,
     ax.add_artist(anchored)
 
     return anchored
+
 
 def save_figure(fig,
                 fig_name,
