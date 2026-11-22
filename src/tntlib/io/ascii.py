@@ -2,10 +2,13 @@ from pathlib import Path
 
 import pandas as pd
 
-def read_ascii(path: str | Path,
-               columns: list[str] | None = None,
-               skiprows: int = 0,
-               comment: str = "#",) -> pd.DataFrame:
+def read_ascii(
+    path: str | Path,
+    columns: list[str] | None = None,
+    skiprows: int = 0,
+    comment: str = "#",
+    na_values: str | list[str] | None = None,
+) -> pd.DataFrame:
     """
     Read a numerical whitespace-separated ASCII file into a DataFrame.
 
@@ -30,14 +33,17 @@ def read_ascii(path: str | Path,
         Character used to indicate comment lines. Lines beginning with
         this character are ignored. Defaults to '#'.
 
+    na_values : str or list of str, optional
+        Additional strings to recognize as missing values.
+        For example, 'NaN', '-' or ['NaN', '-'].
+        Defaults to None.
+
     Returns
     -------
     pandas.DataFrame
         Data contained in the ASCII file.
     """
 
-    # Data files are assumed to be whitespace-separated and numerical.
-    # Integer-valued data are read as floats for consistency in analysis.
     return pd.read_csv(
         path,
         sep=r"\s+",
@@ -46,4 +52,5 @@ def read_ascii(path: str | Path,
         header=None,
         names=columns,
         dtype=float,
+        na_values=na_values,
     )
