@@ -19,14 +19,20 @@ from pathlib import Path
 AP_DIVIDER_RECT = (0.15, 0.15, 0.8, 0.8)
 
 
-def create_figure(ax_width=9,
-                  ax_height=7,
-                  margin=2,
-                  dpi=600,
-                  nrows=1,
-                  ncols=1,
-                  wspace=0.5,
-                  hspace=0.5,):
+
+def create_figure(
+    ax_width=9,
+    ax_height=7,
+    dpi=600,
+    nrows=1,
+    ncols=1,
+    wpad=0.5,
+    hpad=0.5,
+    left_margin=1,
+    right_margin=1,
+    top_margin=1,
+    bottom_margin=1,
+):
     """
     Create a figure with one or multiple fixed-size axes.
 
@@ -38,9 +44,6 @@ def create_figure(ax_width=9,
     ax_height : float, default=7
         Height of each axes in inches.
 
-    margin : float, default=2
-        Additional figure size in inches.
-
     dpi : int, default=600
         Figure resolution.
 
@@ -49,6 +52,24 @@ def create_figure(ax_width=9,
 
     ncols : int, default=1
         Number of columns of axes.
+
+    wpad : float, default=0.5
+        Horizontal separation between adjacent axes, in inches.
+
+    hpad : float, default=0.5
+        Vertical separation between adjacent axes, in inches.
+
+    left_margin : float, default=1
+        Left figure margin, in inches.
+
+    right_margin : float, default=1
+        Right figure margin, in inches.
+
+    top_margin : float, default=1
+        Top figure margin, in inches.
+
+    bottom_margin : float, default=1
+        Bottom figure margin, in inches.
 
     Returns
     -------
@@ -60,61 +81,72 @@ def create_figure(ax_width=9,
         Otherwise, a flat list of Axes, ordered row by row.
     """
 
-    # Validate input.
-    if (not isinstance(nrows, int) or isinstance(nrows, bool)
-            or not isinstance(ncols, int) or isinstance(ncols, bool)
-            or nrows < 1 or ncols < 1):
-        raise ValueError(
-            "'nrows' and 'ncols' must be positive integers."
-        )
+    # Validate number of axes.
+    if (
+        not isinstance(nrows, int) or isinstance(nrows, bool)
+        or not isinstance(ncols, int) or isinstance(ncols, bool)
+        or nrows < 1 or ncols < 1
+    ):
+        raise ValueError("'nrows' and 'ncols' must be positive integers.")
 
-    # Figure dimensions.
-    fig_width = ncols * ax_width + (ncols - 1) * wspace + margin
-    fig_height = nrows * ax_height + (nrows - 1) * hspace + margin
+    # Validate dimensions and spacing.
+    dimensions = {
+        "ax_width": ax_width,
+        "ax_height": ax_height,
+        "wpad": wpad,
+        "hpad": hpad,
+        "left_margin": left_margin,
+        "right_margin": right_margin,
+        "top_margin": top_margin,
+        "bottom_margin": bottom_margin,
+    }
+
+    for name, value in dimensions.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise TypeError(f"'{name}' must be a number.")
+
+        if value < 0:
+            raise ValueError(f"'{name}' cannot be negative.")
+
+    if ax_width <= 0 or ax_height <= 0:
+        raise ValueError("'ax_width' and 'ax_height' must be positive.")
+
+    # Calculate total figure dimensions.
+    fig_width = (
+        ncols * ax_width
+        + (ncols - 1) * wpad
+        + left_margin
+        + right_margin
+    )
+
+    fig_height = (
+        nrows * ax_height
+        + (nrows - 1) * hpad
+        + top_margin
+        + bottom_margin
+    )
 
     fig = plt.figure(
         figsize=(fig_width, fig_height),
         dpi=dpi,
     )
 
-    # Single axes: preserve the original implementation.
-    if nrows == 1 and ncols == 1:
+    # Convert physical margins into figure coordinates.
+    left = left_margin / fig_width
+    right = 1 - right_margin / fig_width
+    bottom = bottom_margin / fig_height
+    top = 1 - top_margin / fig_height
 
-        h = [Size.Fixed(ax_width)]
-        v = [Size.Fixed(ax_height)]
-
-        divider = Divider(
-            fig,
-            AP_DIVIDER_RECT,
-            h,
-            v,
-        )
-
-        ax = fig.add_axes(
-            divider.get_position(),
-            axes_locator=divider.new_locator(nx=0, ny=0),
-        )
-
-        ax.set_autoscale_on(True)
-
-        return fig, ax
-
-    # Multiple axes.
-    # Margins are distributed equally around the grid.
-    left = margin / (2 * fig_width)
-    right = 1 - left
-    bottom = margin / (2 * fig_height)
-    top = 1 - bottom
-
+    # Create grid with fixed physical dimensions.
     gs = fig.add_gridspec(
-    nrows=nrows,
-    ncols=ncols,
-    left=left,
-    right=right,
-    bottom=bottom,
-    top=top,
-    wspace=wspace / ax_width,
-    hspace=hspace / ax_height,
+        nrows=nrows,
+        ncols=ncols,
+        left=left,
+        right=right,
+        bottom=bottom,
+        top=top,
+        wspace=wpad / ax_width if ncols > 1 else 0,
+        hspace=hpad / ax_height if nrows > 1 else 0,
     )
 
     # Create axes in row-major order.
@@ -127,6 +159,9 @@ def create_figure(ax_width=9,
             ax.set_autoscale_on(True)
 
             ax_list.append(ax)
+
+    if nrows == 1 and ncols == 1:
+        return fig, ax_list[0]
 
     return fig, ax_list
 
