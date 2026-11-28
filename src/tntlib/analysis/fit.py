@@ -387,9 +387,9 @@ def LinearFit(x, y, sigma_y,
         print(f'wVAR_x = {wvar_x}\n'
               f'wCOV_xy = {wcov_xy}\n')
 
-    if not np.isfinite(wvar_x) or wvar_x <= 0:
+    if not np.isfinite(wvar_x) or np.isclose(wvar_x, 0.0):
         raise ValueError('The weighted variance of x must be positive.')
-
+    
     # Calculate the slope
     E_m = wcov_xy / wvar_x
     VAR_m = 1 / (sum_w * wvar_x)

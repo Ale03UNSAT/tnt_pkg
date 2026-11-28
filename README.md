@@ -10,5 +10,5 @@ Alessandro Petrini
 ## Example
 
 ```python
-from tnt import analysis, plotting, io
+from tntlib import analysis, io, plotting, symbolic
 ```
