@@ -259,34 +259,28 @@ class SymbolicPropagator:
     # Apply symmetries to abstract propagators
     # --------------------------------------------------------
 
+    
     def apply_symmetries(self, expression):
         """
         Apply registered rules to abstract G(...) objects.
-
+        
         This operates on symbolic propagator components,
         not directly on arbitrary explicit expressions.
         """
 
         expression = sp.sympify(expression)
-
         replacements = {}
 
         for atom in expression.atoms(sp.Function):
-
+            
             if atom.func != self.G:
                 continue
-
+        
             args = list(atom.args)
             factor = 1
 
-            # Matrix propagator arguments:
-            # G(i, j, k, t)
-            #
-            # Scalar propagator arguments:
-            # G(k, t)
-
             for rule in self.symmetries:
-
+                
                 kind = rule["kind"]
                 sign = rule["sign"]
 
@@ -295,38 +289,26 @@ class SymbolicPropagator:
                     i = rule["i"]
                     j = rule["j"]
 
-                    if args[0] == i and args[1] == j:
+                    if len(args) >= 2 and args[0] == i and args[1] == j:
                         args[0], args[1] = j, i
                         factor *= sign
 
-                elif kind == "momentum":
-
+                elif kind in ("momentum", "time"):
+                        
                     variable = rule["variable"]
+                    
+                    for pos, arg in enumerate(args):
 
-                    if variable in args:
-                        pos = args.index(variable)
-
-                        # Canonicalize negative arguments
-                        if args[pos].could_extract_minus_sign():
-                            args[pos] = -args[pos]
+                        # Match both k and -k, or t and -t.
+                        if arg == -variable:
+                            args[pos] = variable
                             factor *= sign
-
-                elif kind == "time":
-
-                    variable = rule["variable"]
-
-                    if variable in args:
-                        pos = args.index(variable)
-
-                        if args[pos].could_extract_minus_sign():
-                            args[pos] = -args[pos]
-                            factor *= sign
-
-            replacements[atom] = (
-                factor * self.G(*args)
-            )
-
+                            break
+                            
+            replacements[atom] = factor * self.G(*args)
+                            
         return expression.xreplace(replacements)
+
 
     # --------------------------------------------------------
     # Display
