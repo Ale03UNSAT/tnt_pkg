@@ -3,6 +3,12 @@ from .structure_factor import (
 )
 
 from .fit import (
+    weighted_mean,
+    lin_cov,
+    lin_var,
+    res_lin,
+    chi2_lin,
+    y_unc,
     _line,
     _exponential,
     _powerlaw,
@@ -12,11 +18,20 @@ from .fit import (
 )
 
 __all__ = [
-    "radial_structure_factor",
+    # Fit
+    "weighted_mean",
+    "lin_cov",
+    "lin_var",
+    "res_lin",
+    "chi2_lin",
+    "y_unc",
     "_line",
     "_exponential",
     "_powerlaw",
     "LinearFit",
     "ExponentialFit",
     "PowerLawFit",
+    
+    # Structure Factor
+    "radial_structure_factor",
 ]

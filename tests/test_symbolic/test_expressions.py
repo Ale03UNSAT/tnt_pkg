@@ -1,14 +1,8 @@
 """
-test_symbolic.py
+test_expressions.py
 ================
 
-Pytest suite for symbolic.py.
-
-Run from the project root:
-    pytest -v
-
-If symbolic.py is inside a package, change the import below
-to the corresponding package import.
+Pytest suite for expressions.py.
 """
 
 import numpy as np

@@ -1,15 +1,24 @@
 """
 Pytest tests for fit.py.
-
-Keep this file in the same directory as fit.py, then run:
-
-    pytest -v test_fit.py
 """
 
 import numpy as np
 import pytest
 
-from tntlib.analysis import fit
+from tntlib.analysis import (
+    weighted_mean,
+    lin_cov,
+    lin_var,
+    res_lin,
+    chi2_lin,
+    _line,
+    _exponential,
+    _powerlaw,
+    y_unc,
+    LinearFit,
+    ExponentialFit,
+    PowerLawFit
+)
 
 
 # ---------------------------------------------------------------------
@@ -20,7 +29,7 @@ def test_weighted_mean():
     x = np.array([1.0, 2.0, 4.0])
     w = np.array([1.0, 2.0, 1.0])
 
-    assert fit.weighted_mean(x, w) == pytest.approx(2.25)
+    assert weighted_mean(x, w) == pytest.approx(2.25)
 
 
 def test_lin_cov():
@@ -28,18 +37,18 @@ def test_lin_cov():
     y = np.array([2.0, 1.0, 3.0])
     w = np.array([1.0, 2.0, 1.0])
 
-    expected = fit.weighted_mean(x * y, w) - (
-        fit.weighted_mean(x, w) * fit.weighted_mean(y, w)
+    expected = weighted_mean(x * y, w) - (
+        weighted_mean(x, w) * weighted_mean(y, w)
     )
 
-    assert fit.lin_cov(x, y, w) == pytest.approx(expected)
+    assert lin_cov(x, y, w) == pytest.approx(expected)
 
 
 def test_lin_var():
     x = np.array([1.0, 2.0, 4.0])
     w = np.array([1.0, 2.0, 1.0])
 
-    assert fit.lin_var(x, w) == pytest.approx(fit.lin_cov(x, x, w))
+    assert lin_var(x, w) == pytest.approx(lin_cov(x, x, w))
 
 
 # ---------------------------------------------------------------------
@@ -54,7 +63,7 @@ def test_res_lin():
     expected = (y - 1.0 * x - 1.0) / sigma_y
 
     np.testing.assert_allclose(
-        fit.res_lin(x, y, 1.0, 1.0, sigma_y),
+        res_lin(x, y, 1.0, 1.0, sigma_y),
         expected,
     )
 
@@ -64,7 +73,7 @@ def test_res_lin_verbose(capsys):
     y = np.array([1.0, 2.0, 3.0])
     sigma_y = np.ones(3)
 
-    fit.res_lin(x, y, 1.0, 1.0, sigma_y, verbose=True)
+    res_lin(x, y, 1.0, 1.0, sigma_y, verbose=True)
 
     output = capsys.readouterr().out
     assert "e_1" in output
@@ -79,7 +88,7 @@ def test_chi2_lin():
 
     residuals = (y - (x + 1.0)) / sigma_y
 
-    assert fit.chi2_lin(x, y, 1.0, 1.0, sigma_y) == pytest.approx(
+    assert chi2_lin(x, y, 1.0, 1.0, sigma_y) == pytest.approx(
         np.sum(residuals**2)
     )
 
@@ -90,20 +99,20 @@ def test_chi2_lin():
 
 def test_line_model():
     x = np.array([0.0, 1.0, 2.0])
-    np.testing.assert_allclose(fit._line(x, 2.0, 1.0), [1.0, 3.0, 5.0])
+    np.testing.assert_allclose(_line(x, 2.0, 1.0), [1.0, 3.0, 5.0])
 
 
 def test_exponential_model():
     x = np.array([0.0, 1.0, 2.0])
     np.testing.assert_allclose(
-        fit._exponential(x, 0.5, 2.0),
+        _exponential(x, 0.5, 2.0),
         2.0 * np.exp(0.5 * x),
     )
 
 
 def test_powerlaw_model():
     x = np.array([1.0, 2.0, 3.0])
-    np.testing.assert_allclose(fit._powerlaw(x, 2.0, 3.0), 3.0 * x**2)
+    np.testing.assert_allclose(_powerlaw(x, 2.0, 3.0), 3.0 * x**2)
 
 
 # ---------------------------------------------------------------------
@@ -118,12 +127,12 @@ def test_y_unc_scalar():
 
     expected = np.sqrt(x**2 * u_m**2 + u_c**2 + 2 * x * cov_mc)
 
-    assert fit.y_unc(x, u_m, u_c, cov_mc) == pytest.approx(expected)
+    assert y_unc(x, u_m, u_c, cov_mc) == pytest.approx(expected)
 
 
 def test_y_unc_array():
     x = np.array([0.0, 1.0, 2.0])
-    result = fit.y_unc(x, 0.1, 0.2, 0.0)
+    result = y_unc(x, 0.1, 0.2, 0.0)
 
     expected = np.sqrt(x**2 * 0.1**2 + 0.2**2)
     np.testing.assert_allclose(result, expected)
@@ -131,7 +140,7 @@ def test_y_unc_array():
 
 def test_y_unc_clips_negative_variance_to_zero():
     # The function explicitly clips negative variances to zero.
-    assert fit.y_unc(1.0, 0.0, 0.0, -1.0) == 0.0
+    assert y_unc(1.0, 0.0, 0.0, -1.0) == 0.0
 
 
 # ---------------------------------------------------------------------
@@ -149,7 +158,7 @@ def linear_data():
 def test_linear_fit_recovers_exact_line(linear_data):
     x, y, sigma_y = linear_data
 
-    result = fit.LinearFit(x, y, sigma_y, verbose_fit=False)
+    result = LinearFit(x, y, sigma_y, verbose_fit=False)
     slope, u_slope, intercept, u_intercept, covariance, chi2, rho, residuals = result
 
     assert slope == pytest.approx(2.0)
@@ -165,7 +174,7 @@ def test_linear_fit_recovers_exact_line(linear_data):
 def test_linear_fit_matches_weighted_uncertainty_formulas(linear_data):
     x, y, sigma_y = linear_data
 
-    result = fit.LinearFit(x, y, sigma_y, verbose_fit=False)
+    result = LinearFit(x, y, sigma_y, verbose_fit=False)
     slope, u_slope, intercept, u_intercept, covariance, *_ = result
 
     w = 1.0 / sigma_y**2
@@ -188,7 +197,7 @@ def test_linear_fit_accepts_list_inputs():
     y = [1.0, 3.0, 5.0]
     sigma_y = [0.1, 0.1, 0.1]
 
-    result = fit.LinearFit(x, y, sigma_y, verbose_fit=False)
+    result = LinearFit(x, y, sigma_y, verbose_fit=False)
 
     assert result[0] == pytest.approx(2.0)
     assert result[2] == pytest.approx(1.0)
@@ -197,7 +206,7 @@ def test_linear_fit_accepts_list_inputs():
 def test_linear_fit_verbose_options(linear_data, capsys):
     x, y, sigma_y = linear_data
 
-    fit.LinearFit(
+    LinearFit(
         x,
         y,
         sigma_y,
@@ -224,7 +233,7 @@ def test_exponential_fit_recovers_exact_model():
     y = 3.0 * np.exp(0.4 * x)
     sigma_y = 0.05 * y
 
-    result = fit.ExponentialFit(x, y, sigma_y, verbose_fit_exp=False)
+    result = ExponentialFit(x, y, sigma_y, verbose_fit_exp=False)
     slope, u_slope, amplitude, u_amplitude, covariance, chi2, rho, residuals = result
 
     assert slope == pytest.approx(0.4)
@@ -242,7 +251,7 @@ def test_exponential_fit_verbose(capsys):
     y = 2.0 * np.exp(0.3 * x)
     sigma_y = 0.1 * y
 
-    fit.ExponentialFit(x, y, sigma_y, verbose_fit_exp=True)
+    ExponentialFit(x, y, sigma_y, verbose_fit_exp=True)
 
     assert "E_m" in capsys.readouterr().out
 
@@ -256,7 +265,7 @@ def test_powerlaw_fit_recovers_exact_model():
     y = 5.0 * x**1.5
     sigma_y = 0.05 * y
 
-    result = fit.PowerLawFit(x, y, sigma_y, verbose_fit_pow=False)
+    result = PowerLawFit(x, y, sigma_y, verbose_fit_pow=False)
     exponent, u_exponent, amplitude, u_amplitude, covariance, chi2, rho, residuals = result
 
     assert exponent == pytest.approx(1.5)
@@ -274,7 +283,7 @@ def test_powerlaw_fit_verbose(capsys):
     y = 4.0 * x**2
     sigma_y = 0.1 * y
 
-    fit.PowerLawFit(x, y, sigma_y, verbose_fit_pow=True)
+    PowerLawFit(x, y, sigma_y, verbose_fit_pow=True)
 
     assert "E_alpha" in capsys.readouterr().out
 
@@ -299,7 +308,7 @@ def test_powerlaw_fit_verbose(capsys):
 )
 def test_linear_fit_rejects_invalid_inputs(bad_x, bad_y, bad_sigma, message):
     with pytest.raises(ValueError, match=message):
-        fit.LinearFit(bad_x, bad_y, bad_sigma, verbose_fit=False)
+        LinearFit(bad_x, bad_y, bad_sigma, verbose_fit=False)
 
 
 @pytest.mark.parametrize(
@@ -315,7 +324,7 @@ def test_exponential_fit_rejects_invalid_inputs(y, sigma_y, message):
     x = np.array([0.0, 1.0, 2.0])
 
     with pytest.raises(ValueError, match=message):
-        fit.ExponentialFit(x, y, sigma_y, verbose_fit_exp=False)
+        ExponentialFit(x, y, sigma_y, verbose_fit_exp=False)
 
 
 @pytest.mark.parametrize(
@@ -331,7 +340,7 @@ def test_exponential_fit_rejects_invalid_inputs(y, sigma_y, message):
 )
 def test_powerlaw_fit_rejects_invalid_inputs(x, y, sigma_y, message):
     with pytest.raises(ValueError, match=message):
-        fit.PowerLawFit(x, y, sigma_y, verbose_fit_pow=False)
+        PowerLawFit(x, y, sigma_y, verbose_fit_pow=False)
 
 
 def test_linear_fit_rejects_constant_x():
@@ -340,7 +349,7 @@ def test_linear_fit_rejects_constant_x():
     sigma_y = np.ones(3)
 
     with pytest.raises(ValueError, match="variance of x"):
-        fit.LinearFit(x, y, sigma_y, verbose_fit=False)
+        LinearFit(x, y, sigma_y, verbose_fit=False)
 
 
 def test_exponential_fit_rejects_constant_x():
@@ -349,7 +358,7 @@ def test_exponential_fit_rejects_constant_x():
     sigma_y = np.ones(3)
 
     with pytest.raises(ValueError, match="variance of x"):
-        fit.ExponentialFit(x, y, sigma_y, verbose_fit_exp=False)
+        ExponentialFit(x, y, sigma_y, verbose_fit_exp=False)
 
 
 def test_powerlaw_fit_rejects_constant_x():
@@ -358,4 +367,4 @@ def test_powerlaw_fit_rejects_constant_x():
     sigma_y = np.ones(3)
 
     with pytest.raises(ValueError, match="variance of x"):
-        fit.PowerLawFit(x, y, sigma_y, verbose_fit_pow=False)
+        PowerLawFit(x, y, sigma_y, verbose_fit_pow=False)

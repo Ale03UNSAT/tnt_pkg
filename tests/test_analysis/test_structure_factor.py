@@ -1,15 +1,14 @@
 """
 Pytest tests for structure_factor.py.
-
-Keep this file alongside structure_factor.py, then run:
-    pytest -v test_structure_factor.py
 """
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from tntlib.analysis import structure_factor
+from tntlib.analysis import (
+    radial_structure_factor
+)
 
 
 def test_radial_wavevector_and_column_order():
@@ -19,7 +18,7 @@ def test_radial_wavevector_and_column_order():
         "S": [10.0, 20.0, 30.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     assert isinstance(result, pd.DataFrame)
     assert result.columns[0] == "k"
@@ -36,7 +35,7 @@ def test_radial_averaging_of_points_in_same_bin():
         "S": [2.0, 4.0, 6.0, 8.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     assert len(result) == 2
     np.testing.assert_allclose(result["k"], [1.0, 2.0])
@@ -51,7 +50,7 @@ def test_all_observables_are_radially_averaged():
         "temperature": [10.0, 14.0, 20.0, 24.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     assert list(result.columns) == ["k", "S", "temperature"]
     np.testing.assert_allclose(result["S"], [3.0, 7.0])
@@ -65,7 +64,7 @@ def test_empty_bins_are_removed():
         "S": [10.0, 20.0, 30.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=5)
+    result = radial_structure_factor(df, nbins=5)
 
     assert len(result) == 3
     assert result["S"].notna().all()
@@ -78,7 +77,7 @@ def test_default_number_of_bins():
         "S": [1.0, 2.0, 3.0],
     })
 
-    result = structure_factor.radial_structure_factor(df)
+    result = radial_structure_factor(df)
 
     assert isinstance(result, pd.DataFrame)
     assert "k" in result.columns
@@ -98,7 +97,7 @@ def test_kinetic_energy_is_constructed(velocity_columns):
         vy_name: [0.0, 0.0, 0.0, 0.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     assert "Ekin" in result.columns
     np.testing.assert_allclose(result["Ekin"], [5.0, 25.0])
@@ -113,7 +112,7 @@ def test_existing_kinetic_energy_is_not_overwritten():
         "Ekin": [100.0, 200.0, 300.0, 400.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     np.testing.assert_allclose(result["Ekin"], [150.0, 350.0])
 
@@ -125,7 +124,7 @@ def test_no_kinetic_energy_without_complete_velocity_pair():
         "vx": [2.0, 4.0, 6.0],
     })
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     assert "Ekin" not in result.columns
 
@@ -140,7 +139,7 @@ def test_input_dataframe_is_not_modified():
     })
     original = df.copy(deep=True)
 
-    structure_factor.radial_structure_factor(df, nbins=2)
+    radial_structure_factor(df, nbins=2)
 
     pd.testing.assert_frame_equal(df, original)
 
@@ -152,7 +151,7 @@ def test_result_has_reset_index():
         "S": [2.0, 4.0, 6.0, 8.0],
     }, index=[10, 20, 30, 40])
 
-    result = structure_factor.radial_structure_factor(df, nbins=2)
+    result = radial_structure_factor(df, nbins=2)
 
     assert result.index.equals(pd.RangeIndex(len(result)))
 
@@ -166,7 +165,7 @@ def test_result_has_reset_index():
 )
 def test_rejects_fewer_than_two_columns(df):
     with pytest.raises(ValueError, match="at least two columns"):
-        structure_factor.radial_structure_factor(df)
+        radial_structure_factor(df)
 
 
 @pytest.mark.parametrize(
@@ -179,4 +178,4 @@ def test_rejects_fewer_than_two_columns(df):
 )
 def test_rejects_incorrect_first_two_columns(df):
     with pytest.raises(ValueError, match="first two columns"):
-        structure_factor.radial_structure_factor(df)
+        radial_structure_factor(df)
