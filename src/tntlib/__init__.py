@@ -7,10 +7,10 @@ Scientific toolkit for data analysis and plotting.
 Developed by Alessandro Petrini 
 
 Provides:
-- plotting module
 - analysis module
 - io module
+- plotting module
 - symbolic module
 """
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
