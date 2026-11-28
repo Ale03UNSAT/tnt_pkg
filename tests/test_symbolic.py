@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from symbolic import (
+from tntlib.symbolic import (
     SymbolicExpression,
     SymbolicMatrix,
     SymbolicSet,
